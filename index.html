@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi Micro Invernadero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="hojas" aria-hidden="true">
+    <span class="hoja" style="--x:6%;--dur:14s;--d:0s">&#127807;</span>
+    <span class="hoja" style="--x:18%;--dur:18s;--d:3s">&#127811;</span>
+    <span class="hoja" style="--x:30%;--dur:12s;--d:7s">&#127808;</span>
+    <span class="hoja" style="--x:45%;--dur:16s;--d:2s">&#127793;</span>
+    <span class="hoja" style="--x:58%;--dur:13s;--d:5s">&#127807;</span>
+    <span class="hoja" style="--x:70%;--dur:19s;--d:9s">&#127811;</span>
+    <span class="hoja" style="--x:82%;--dur:15s;--d:1s">&#127808;</span>
+    <span class="hoja" style="--x:92%;--dur:17s;--d:6s">&#127793;</span>
+  </div>
+
+  <div class="panel">
+    <div class="cabecera">
+      <div class="sol" aria-hidden="true">&#9728;&#65039;</div>
+      <h1>&#127793; El Micro invernadero del Rural.</h1>
+      <p class="sub">Un proyecto de cuarto a&ntilde;o para el abordaje de los ambientes controlados</p>
+    </div>
+
+    <div class="estado">
+      <span id="dot" class="dot"></span>
+      <span id="estado">Conectando...</span>
+      <span id="hora"></span>
+    </div>
+
+    <!-- Sensores: 5 tarjetas -->
+    <div class="grid-sensores">
+      <div class="tarjeta destacada temp">
+        <div class="icono" aria-hidden="true">&#127777;&#65039;</div>
+        <div class="valor" id="temp">--</div>
+        <div class="etiqueta">Temperatura</div>
+      </div>
+      <div class="tarjeta destacada hum">
+        <div class="icono" aria-hidden="true">&#128167;</div>
+        <div class="valor" id="hum">--</div>
+        <div class="etiqueta">Humedad</div>
+      </div>
+      <div class="tarjeta destacada co2">
+        <div class="icono" aria-hidden="true">&#128168;</div>
+        <div class="valor" id="co2">--</div>
+        <div class="etiqueta">CO&#8322; (ppm)</div>
+      </div>
+      <div class="tarjeta destacada luz">
+        <div class="icono" aria-hidden="true">&#9728;&#65039;</div>
+        <div class="valor" id="luz">--</div>
+        <div class="etiqueta">Luz (lx)</div>
+      </div>
+      <div class="tarjeta destacada suelo">
+        <div class="icono" aria-hidden="true">&#127793;</div>
+        <div class="valor" id="suelo">--</div>
+        <div class="etiqueta">Suelo (%)</div>
+      </div>
+    </div>
+
+    <!-- Controles -->
+    <div class="controles">
+      <div id="ctrlMsg" class="ctrl-msg"></div>
+      <div class="ctrl-grupo">
+        <div class="anim-act" id="fanAnim">
+          <svg viewBox="0 0 100 100" class="svg-ventilador">
+            <g class="aspas" id="aspasFan">
+              <ellipse cx="50" cy="20" rx="12" ry="28" fill="#22c55e" opacity="0.85"/>
+              <ellipse cx="80" cy="50" rx="28" ry="12" fill="#22c55e" opacity="0.85"/>
+              <ellipse cx="50" cy="80" rx="12" ry="28" fill="#22c55e" opacity="0.85"/>
+              <ellipse cx="20" cy="50" rx="28" ry="12" fill="#22c55e" opacity="0.85"/>
+            </g>
+            <circle cx="50" cy="50" r="8" fill="#16a34a"/>
+          </svg>
+        </div>
+        <div class="ctrl-titulo">Ventilador</div>
+        <label class="switch">
+          <input type="checkbox" id="fanToggle" onchange="controlFan(this.checked)">
+          <span class="slider"></span>
+        </label>
+        <span id="fanState" class="ctrl-estado">OFF</span>
+      </div>
+      <div class="ctrl-grupo">
+        <div class="anim-act" id="pumpAnim">
+          <svg viewBox="0 0 100 100" class="svg-bomba">
+            <rect x="10" y="42" width="22" height="10" rx="3" fill="#0ea5e9"/>
+            <rect x="28" y="28" width="44" height="44" rx="8" fill="#38bdf8"/>
+            <rect x="32" y="32" width="36" height="36" rx="5" fill="#7dd3fc"/>
+            <circle cx="50" cy="50" r="10" fill="#0ea5e9"/>
+            <circle cx="50" cy="50" r="6" fill="#38bdf8"/>
+            <rect x="68" y="42" width="22" height="10" rx="3" fill="#0ea5e9"/>
+            <ellipse cx="90" cy="60" rx="3" ry="4" fill="#0ea5e9" class="gota gota1"/>
+            <ellipse cx="86" cy="68" rx="2.5" ry="3.5" fill="#38bdf8" class="gota gota2"/>
+            <circle cx="50" cy="78" r="2" fill="#0ea5e9" class="gota gota3"/>
+            <circle cx="56" cy="82" r="1.5" fill="#38bdf8" class="gota gota4"/>
+          </svg>
+        </div>
+        <div class="ctrl-titulo">Bomba</div>
+        <label class="switch">
+          <input type="checkbox" id="pumpToggle" onchange="controlPump(this.checked)">
+          <span class="slider pump-slider"></span>
+        </label>
+        <span id="pumpState" class="ctrl-estado">OFF</span>
+      </div>
+    </div>
+
+    <!-- Foto -->
+    <div class="tarjeta foto">
+      <div class="fotoHeader">
+        <div class="fotoTitulo">&#128247; Nuestro invernadero ahora</div>
+        <button class="btn capture" onclick="capturarFoto()">&#128247; Capturar</button>
+      </div>
+      <img id="foto" alt="Ultima foto" src="">
+      <div class="fotoFecha" id="fotoFecha">Cargando ultima foto...</div>
+      <div class="tlc">
+        <button id="timelapseBtn" class="btn" onclick="iniciarTimelapse()">&#9654; Timelapse</button>
+        <span id="tlProgreso" class="tlProgreso"></span>
+      </div>
+    </div>
+
+    <!-- Graficos ThingSpeak -->
+    <div class="grid-graficos">
+      <div class="tarjeta graficoTarjeta">
+        <div class="graficoTitulo">&#127777;&#65039; Temperatura</div>
+        <iframe class="grafico" data-reload data-src="https://thingspeak.mathworks.com/channels/3459966/charts/1?bgcolor=%23ffffff&amp;color=%23f97316&amp;dynamic=true&amp;max=40&amp;min=10&amp;results=180&amp;xaxis=5400&amp;title=TEMPERATURA&amp;type=line" title="Grafico temperatura"></iframe>
+      </div>
+      <div class="tarjeta graficoTarjeta">
+        <div class="graficoTitulo">&#128167; Humedad</div>
+        <iframe class="grafico" data-reload data-src="https://thingspeak.mathworks.com/channels/3459966/charts/2?bgcolor=%23ffffff&amp;color=%230ea5e9&amp;dynamic=true&amp;max=100&amp;min=0&amp;results=180&amp;xaxis=5400&amp;title=HUMEDAD&amp;type=line" title="Grafico humedad"></iframe>
+      </div>
+      <div class="tarjeta graficoTarjeta">
+        <div class="graficoTitulo">&#128168; CO&#8322;</div>
+        <iframe class="grafico" data-reload data-src="https://thingspeak.mathworks.com/channels/3459966/charts/3?bgcolor=%23ffffff&amp;color=%2322c55e&amp;dynamic=true&amp;max=2000&amp;min=300&amp;results=180&amp;xaxis=5400&amp;title=CO2&amp;type=line" title="Grafico CO2"></iframe>
+      </div>
+      <div class="tarjeta graficoTarjeta">
+        <div class="graficoTitulo">&#9728;&#65039; Luz</div>
+        <iframe class="grafico" data-reload data-src="https://thingspeak.mathworks.com/channels/3459966/charts/4?bgcolor=%23ffffff&amp;color=%23eab308&amp;dynamic=true&amp;max=65000&amp;min=0&amp;results=180&amp;xaxis=5400&amp;title=LUZ&amp;type=line" title="Grafico luz"></iframe>
+      </div>
+      <div class="tarjeta graficoTarjeta">
+        <div class="graficoTitulo">&#127793; Suelo</div>
+        <iframe class="grafico" data-reload data-src="https://thingspeak.mathworks.com/channels/3459966/charts/5?bgcolor=%23ffffff&amp;color=%2392400e&amp;dynamic=true&amp;max=100&amp;min=0&amp;results=180&amp;xaxis=5400&amp;title=SUELO&amp;type=line" title="Grafico suelo"></iframe>
+      </div>
+    </div>
+
+    <!-- Diagnostico profundo -->
+    <div class="diagnostico verde" id="diagnostico">
+      <div class="diagScore" id="diagScore"></div>
+      <div class="diagTexto" id="diagTexto">Analizando condiciones del invernadero...</div>
+      <div class="diagRecom" id="diagRecom"></div>
+    </div>
+
+    <p class="nota">Los datos y las fotos se actualizan solos &#127803;</p>
+    <p class="nota esc">ESRN Rural Virtual</p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
