@@ -10,10 +10,15 @@ const POLL_DATOS_MS = 10000;
 const POLL_FOTO_MS = 10000;
 const POLL_IFRAME_MS = 60000;
 const MAX_ANTIGUEDAD_S = 120;
+const FAN_MAX_MS = 1200000;  // 20 min en ms (debe coincidir con ESP32)
 
 const API_URL =
   "https://api.thingspeak.com/channels/" + CHANNEL_ID +
   "/feeds.json?api_key=" + READ_API_KEY + "&results=10";
+
+// ----- Countdown ventilador -----
+let fanOnTimestamp = null;  // cuándo se prendió el ventilador (local)
+let fanCountdownInterval = null;
 
 const elem = (id) => document.getElementById(id);
 
@@ -70,9 +75,9 @@ async function cargarDatos() {
     if (!isNaN(lux))   elem("luz").textContent   = Math.round(lux) + " lx";
     if (!isNaN(suelo)) elem("suelo").textContent = Math.round(suelo) + " %";
 
-    // Comandos: buscar hacia atrás la última entrada con field6/field7
-    // (las escrituras del ESP32 solo traen field1-5, field6/field7 quedan null)
-    let fanVal = null, pumpVal = null;
+    // Comandos: field6=ventilador(0/1/2), field7=bomba(0/1)
+    // field6: 0=todo OFF, 1=ventilador+válvula, 2=solo válvula
+    let fanVal = null, pumpVal = null, valveVal = null;
     for (let i = feeds.length - 1; i >= 0; i--) {
       if (fanVal === null && feeds[i].field6 !== null && feeds[i].field6 !== "") {
         fanVal = parseInt(feeds[i].field6);
@@ -82,14 +87,28 @@ async function cargarDatos() {
       }
       if (fanVal !== null && pumpVal !== null) break;
     }
-    const fanOn  = fanVal === 1;
-    const pumpOn = pumpOffTimer ? false : pumpVal === 1;
-    elem("fanState").textContent  = fanOn ? "ON" : "--";
-    elem("pumpState").textContent = pumpOn ? "ON" : "--";
-    elem("fanToggle").checked  = fanOn;
-    elem("pumpToggle").checked = pumpOn;
+    const fanOn   = fanVal === 1;
+    const valveOn = fanVal === 1 || fanVal === 2;
+    const pumpOn  = pumpOffTimer ? false : pumpVal === 1;
+    elem("fanState").textContent   = fanOn ? "ON" : "--";
+    elem("valveState").textContent = valveOn ? "ON" : "--";
+    elem("pumpState").textContent  = pumpOn ? "ON" : "--";
+    elem("fanToggle").checked   = fanOn;
+    elem("valveToggle").checked = valveOn;
+    elem("pumpToggle").checked  = pumpOn;
     elem("aspasFan").classList.toggle("girando", fanOn);
+    elem("valveAnim").classList.toggle("valvula-abierta", valveOn);
     elem("pumpAnim").classList.toggle("bombeando", pumpOn);
+
+    // Sync countdown: si el ventilador está ON pero no tenemos timestamp, estimar
+    if (fanOn && !fanOnTimestamp) {
+      // No sabemos exactamente cuándo se prendió, estimar 5 min restantes
+      fanOnTimestamp = Date.now() - (FAN_MAX_MS - 300000);
+      iniciarCountdown();
+    } else if (!fanOn && fanOnTimestamp) {
+      fanOnTimestamp = null;
+      detenerCountdown();
+    }
 
     const ts = new Date(d.created_at).getTime();
     const antiguedad = (Date.now() - ts) / 1000;
@@ -132,15 +151,82 @@ function mostrarMsg(txt, tipo) {
 
 function controlFan(ON) {
   elem("fanState").textContent = "...";
+  // Prender: field6=1 (ventilador+válvula)
+  // Apagar: field6=0 (todo OFF, incluyendo válvula)
   thingSpeakWrite("field6", ON ? 1 : 0,
     () => {
-      elem("fanState").textContent = ON ? "ON" : "OFF";
+      elem("fanState").textContent = ON ? "ON" : "--";
       elem("aspasFan").classList.toggle("girando", ON);
-      mostrarMsg(ON ? "Ventilador encendido" : "Ventilador apagado", "ok");
+      if (ON) {
+        elem("valveState").textContent = "ON";
+        elem("valveToggle").checked = true;
+        elem("valveAnim").classList.add("valvula-abierta");
+        fanOnTimestamp = Date.now();
+        iniciarCountdown();
+      } else {
+        elem("valveState").textContent = "--";
+        elem("valveToggle").checked = false;
+        elem("valveAnim").classList.remove("valvula-abierta");
+        fanOnTimestamp = null;
+        detenerCountdown();
+      }
+      mostrarMsg(ON ? "Ventilador encendido (20 min máx)" : "Ventilador apagado", "ok");
     },
     () => {
-      elem("fanState").textContent = ON ? "OFF" : "ON";
+      elem("fanState").textContent = ON ? "--" : "ON";
       elem("fanToggle").checked = !ON;
+      mostrarMsg("No se pudo enviar. Esperá 15s.", "error");
+    }
+  );
+}
+
+function iniciarCountdown() {
+  detenerCountdown();
+  actualizarCountdown();
+  fanCountdownInterval = setInterval(actualizarCountdown, 1000);
+}
+
+function detenerCountdown() {
+  clearInterval(fanCountdownInterval);
+  fanCountdownInterval = null;
+  elem("fanCountdown").textContent = "";
+}
+
+function actualizarCountdown() {
+  if (!fanOnTimestamp) { detenerCountdown(); return; }
+  const restante = Math.max(0, FAN_MAX_MS - (Date.now() - fanOnTimestamp));
+  const min = Math.floor(restante / 60000);
+  const seg = Math.floor((restante % 60000) / 1000);
+  if (restante <= 0) {
+    detenerCountdown();
+    elem("fanCountdown").textContent = "Apagado automáticamente";
+    return;
+  }
+  elem("fanCountdown").textContent = "Auto-apagado en " + min + ":" + String(seg).padStart(2, "0");
+  // Si quedan menos de 3 min, cambiar color a rojo
+  elem("fanCountdown").style.color = restante < 180000 ? "#ef4444" : "#eab308";
+}
+
+function controlValve(ON) {
+  elem("valveState").textContent = "...";
+  // Si se prende válvula sin ventilador, field6=2
+  // Si se prende con ventilador, field6=1 (ya está prendido)
+  // Si se apaga válvula y ventilador está ON, field6=1
+  // Si se apaga todo, field6=0
+  const fanOn = elem("fanToggle").checked;
+  let field6val = 0;
+  if (fanOn && ON) field6val = 1;       // ambos ON
+  else if (fanOn && !ON) field6val = 1; // ventilador sigue ON
+  else if (!fanOn && ON) field6val = 2; // solo válvula
+  thingSpeakWrite("field6", field6val,
+    () => {
+      elem("valveState").textContent = ON ? "ON" : "--";
+      elem("valveAnim").classList.toggle("valvula-abierta", ON);
+      mostrarMsg(ON ? "Válvula abierta" : "Válvula cerrada", "ok");
+    },
+    () => {
+      elem("valveState").textContent = ON ? "--" : "ON";
+      elem("valveToggle").checked = !ON;
       mostrarMsg("No se pudo enviar. Esperá 15s.", "error");
     }
   );
@@ -217,7 +303,6 @@ function mostrarFoto(id, creada) {
 elem("foto").addEventListener("error", () => {
   const src = elem("foto").src || "";
   if (!src || src.indexOf("data:image") === 0) return;
-  if (tl.activo) return;
 
   const reintentos = parseInt(elem("foto").dataset.reintentos || "0", 10);
   const idActual = ultimoIdFoto;
@@ -251,7 +336,7 @@ let cargandoFotoEnCurso = false;
 async function cargarFoto() {
   if (cargandoFotoEnCurso) return;
   if (!APPS_SCRIPT_FOTOS_URL.startsWith("http")) return;
-  if (tl.activo || esperandoFotoNueva) return;
+  if (esperandoFotoNueva) return;
 
   cargandoFotoEnCurso = true;
   try {
@@ -305,69 +390,6 @@ async function esperarFotoNueva() {
     } catch (e) {}
   }
   esperandoFotoNueva = false;
-}
-
-// ----- Timelapse -----
-let tl = { activo: false, fotos: [], idx: 0, timer: null, ms: 2000 };
-
-function iniciarTimelapse() {
-  if (tl.activo) { pausarTimelapse(); return; }
-  if (!APPS_SCRIPT_FOTOS_URL.startsWith("http")) return;
-
-  elem("timelapseBtn").textContent = "Cargando...";
-  fetch(APPS_SCRIPT_FOTOS_URL + "?accion=listar&camara=cam01&n=15&t=" + Date.now(), { cache: "no-store" })
-    .then((r) => r.json())
-    .then((datos) => {
-      if (!datos.success || !datos.fotos || datos.fotos.length < 2) {
-        elem("timelapseBtn").textContent = "\u25b6 Timelapse";
-        alert("Todavia no hay suficientes fotos (se necesitan al menos 2).");
-        return;
-      }
-      tl.activo = true;
-      tl.fotos = datos.fotos;
-      tl.idx = 0;
-      elem("timelapseBtn").textContent = "\u23f8 Pausar";
-      mostrarFrameTimelapse();
-      programarTimelapse();
-    })
-    .catch(() => { elem("timelapseBtn").textContent = "\u25b6 Timelapse"; });
-}
-
-function mostrarFrameTimelapse() {
-  const f = tl.fotos[tl.idx];
-  if (!f) return;
-  elem("foto").src = "data:image/jpeg;base64," + f.base64;
-  elem("fotoFecha").textContent =
-    "Timelapse \u00b7 " + new Date(f.creada).toLocaleString();
-  elem("tlProgreso").textContent = (tl.idx + 1) + "/" + tl.fotos.length;
-  tl.idx = (tl.idx + 1) % tl.fotos.length;
-}
-
-function programarTimelapse() {
-  tl.timer = setTimeout(() => {
-    if (!tl.activo) return;
-    mostrarFrameTimelapse();
-    programarTimelapse();
-  }, tl.ms);
-}
-
-function pausarTimelapse() {
-  tl.activo = false;
-  clearTimeout(tl.timer);
-  elem("timelapseBtn").textContent = "\u25b6 Timelapse";
-}
-
-function volverAlVivo() {
-  pausarTimelapse();
-  elem("tlProgreso").textContent = "";
-  ultimoIdFoto = null;
-  cargarFoto();
-}
-
-function cambiarVelocidad(btn) {
-  tl.ms = parseInt(btn.dataset.ms, 10) || 2000;
-  document.querySelectorAll(".btn.vel").forEach((b) => b.classList.remove("act"));
-  btn.classList.add("act");
 }
 
 // ----- Graficos ThingSpeak -----

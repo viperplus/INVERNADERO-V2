@@ -85,6 +85,24 @@
           <span class="slider"></span>
         </label>
         <span id="fanState" class="ctrl-estado">OFF</span>
+        <span id="fanCountdown" class="ctrl-countdown"></span>
+      </div>
+      <div class="ctrl-grupo">
+        <div class="anim-act" id="valveAnim">
+          <svg viewBox="0 0 100 100" class="svg-valvula">
+            <rect x="20" y="35" width="60" height="30" rx="4" fill="#8b5cf6" opacity="0.3"/>
+            <rect x="25" y="40" width="50" height="20" rx="3" fill="#8b5cf6"/>
+            <circle cx="50" cy="50" r="8" fill="#7c3aed"/>
+            <line x1="50" y1="30" x2="50" y2="42" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+            <rect x="44" y="25" width="12" height="8" rx="2" fill="#a78bfa"/>
+          </svg>
+        </div>
+        <div class="ctrl-titulo">Válvula</div>
+        <label class="switch">
+          <input type="checkbox" id="valveToggle" onchange="controlValve(this.checked)">
+          <span class="slider valve-slider"></span>
+        </label>
+        <span id="valveState" class="ctrl-estado">OFF</span>
       </div>
       <div class="ctrl-grupo">
         <div class="anim-act" id="pumpAnim">
@@ -118,10 +136,6 @@
       </div>
       <img id="foto" alt="Ultima foto" src="">
       <div class="fotoFecha" id="fotoFecha">Cargando ultima foto...</div>
-      <div class="tlc">
-        <button id="timelapseBtn" class="btn" onclick="iniciarTimelapse()">&#9654; Timelapse</button>
-        <span id="tlProgreso" class="tlProgreso"></span>
-      </div>
     </div>
 
     <!-- Graficos ThingSpeak -->
