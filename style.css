@@ -160,6 +160,43 @@ h1 { font-size:34px; font-weight:800; color:#2f7d32; letter-spacing:1px; text-sh
 .ctrl-estado { font-size:13px; font-weight:800; color:#39524a; min-width:32px; }
 .ctrl-countdown { font-size:10px; font-weight:700; color:#eab308; min-height:12px; }
 
+/* Tooltips controles */
+.tooltip-container { position:relative; }
+.tooltip-text {
+  visibility:hidden;
+  opacity:0;
+  position:absolute;
+  bottom:calc(100% + 8px);
+  left:50%;
+  transform:translateX(-50%);
+  background:#1e293b;
+  color:#f1f5f9;
+  font-size:12px;
+  font-weight:500;
+  line-height:1.4;
+  padding:8px 12px;
+  border-radius:8px;
+  width:200px;
+  text-align:center;
+  z-index:100;
+  pointer-events:none;
+  transition:opacity 0.2s ease, visibility 0.2s ease;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2);
+}
+.tooltip-text::after {
+  content:"";
+  position:absolute;
+  top:100%;
+  left:50%;
+  transform:translateX(-50%);
+  border:6px solid transparent;
+  border-top-color:#1e293b;
+}
+.tooltip-container:hover .tooltip-text {
+  visibility:visible;
+  opacity:1;
+}
+
 /* Toggle switch */
 .switch {
   position:relative; display:inline-block; width:60px; height:32px; cursor:pointer;
@@ -287,4 +324,152 @@ h1 { font-size:34px; font-weight:800; color:#2f7d32; letter-spacing:1px; text-sh
   .ctrl-titulo { font-size:11px; }
   .ctrl-estado { font-size:11px; }
   .diagTexto { font-size:13px; }
+}
+
+/* ===== Bitacora ===== */
+.tarjeta.bitacora {
+  padding: 16px;
+  margin-bottom: 16px;
+  background: linear-gradient(180deg, #fef9ee 0%, #ffffff 100%);
+  border-color: #e8d48b;
+}
+
+.post {
+  background: #fafdf7;
+  border: 2px solid #d4e8c6;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.postImg {
+  width: 100%;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 8px;
+  max-height: 300px;
+  object-fit: contain;
+  background: #f5f5f5;
+}
+
+.postTexto {
+  font-size: 15px;
+  color: #23302b;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  text-align: justify;
+}
+
+.postFecha {
+  font-size: 12px;
+  color: #6b8177;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #d4e8c6;
+  text-transform: capitalize;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.postBorrar {
+  font-size: 11px;
+  color: #999;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.postBorrar:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.sinPosts {
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+  padding: 20px;
+}
+
+.blogToggle {
+  margin-top: 14px;
+}
+
+.blogForm {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blogForm.oculto {
+  display: none;
+}
+
+.blogForm textarea {
+  font-family: "Baloo 2", "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  padding: 10px;
+  border: 2px solid #cfe8bd;
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 70px;
+  outline: none;
+}
+
+.blogForm textarea:focus {
+  border-color: #66bb4f;
+}
+
+.blogFileLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4a6358;
+  cursor: pointer;
+}
+
+.blogFileLabel input[type="file"] {
+  display: none;
+}
+
+.blogPreview {
+  text-align: center;
+}
+
+.blogPreview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 10px;
+  border: 2px solid #cfe8bd;
+}
+
+.blogFormRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.blogPublicar {
+  background: linear-gradient(180deg, #f6a821 0%, #e08a00 100%);
+  box-shadow: 0 3px 8px rgba(224, 138, 0, 0.35);
+}
+
+.postEstado {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  min-height: 20px;
+}
+
+.postEstado.ok {
+  color: #16a34a;
+}
+
+.postEstado.error {
+  color: #dc2626;
 }

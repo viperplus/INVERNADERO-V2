@@ -67,7 +67,7 @@
     <!-- Controles -->
     <div class="controles">
       <div id="ctrlMsg" class="ctrl-msg"></div>
-      <div class="ctrl-grupo">
+      <div class="ctrl-grupo tooltip-container">
         <div class="anim-act" id="fanAnim">
           <svg viewBox="0 0 100 100" class="svg-ventilador">
             <g class="aspas" id="aspasFan">
@@ -86,8 +86,9 @@
         </label>
         <span id="fanState" class="ctrl-estado">OFF</span>
         <span id="fanCountdown" class="ctrl-countdown"></span>
+        <div class="tooltip-text">Enciende el ventilador para refrescar el invernadero. Se apaga solo a los 20 minutos. Al encenderse, abre la valvula automaticamente.</div>
       </div>
-      <div class="ctrl-grupo">
+      <div class="ctrl-grupo tooltip-container">
         <div class="anim-act" id="valveAnim">
           <svg viewBox="0 0 100 100" class="svg-valvula">
             <rect x="20" y="35" width="60" height="30" rx="4" fill="#8b5cf6" opacity="0.3"/>
@@ -97,14 +98,15 @@
             <rect x="44" y="25" width="12" height="8" rx="2" fill="#a78bfa"/>
           </svg>
         </div>
-        <div class="ctrl-titulo">Válvula</div>
+        <div class="ctrl-titulo">Valvula</div>
         <label class="switch">
           <input type="checkbox" id="valveToggle" onchange="controlValve(this.checked)">
           <span class="slider valve-slider"></span>
         </label>
         <span id="valveState" class="ctrl-estado">OFF</span>
+        <div class="tooltip-text">Abre o cierra la valvula mariposa del conducto de aire. Funciona independiente del ventilador.</div>
       </div>
-      <div class="ctrl-grupo">
+      <div class="ctrl-grupo tooltip-container">
         <div class="anim-act" id="pumpAnim">
           <svg viewBox="0 0 100 100" class="svg-bomba">
             <rect x="10" y="42" width="22" height="10" rx="3" fill="#0ea5e9"/>
@@ -125,6 +127,7 @@
           <span class="slider pump-slider"></span>
         </label>
         <span id="pumpState" class="ctrl-estado">OFF</span>
+        <div class="tooltip-text">Activa la bomba de riego por 3 segundos. Hay una pausa minima de 30 minutos entre riegos para no saturar el suelo.</div>
       </div>
     </div>
 
@@ -167,6 +170,25 @@
       <div class="diagScore" id="diagScore"></div>
       <div class="diagTexto" id="diagTexto">Analizando condiciones del invernadero...</div>
       <div class="diagRecom" id="diagRecom"></div>
+    </div>
+
+    <!-- Bitacora -->
+    <div class="tarjeta bitacora">
+      <div class="graficoTitulo">&#128221; Bitacora del invernadero</div>
+      <div id="posts"></div>
+      <button class="btn blogToggle" onclick="toggleBlogForm()">&#9998; Escribir post</button>
+      <div id="blogForm" class="blogForm oculto">
+        <textarea id="postTexto" placeholder="Escribi tu publicacion..." rows="3"></textarea>
+        <label class="blogFileLabel">
+          &#128247; Adjuntar imagen
+          <input type="file" id="postImagen" accept="image/*">
+        </label>
+        <div id="blogPreview" class="blogPreview"></div>
+        <div class="blogFormRow">
+          <button class="btn blogPublicar" onclick="publicarPost()">Publicar</button>
+        </div>
+        <div id="postEstado" class="postEstado"></div>
+      </div>
     </div>
 
     <p class="nota">Los datos y las fotos se actualizan solos &#127803;</p>

@@ -638,4 +638,119 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".btn").forEach(b => {
     b.dataset.orig = b.textContent;
   });
+  cargarPosts();
 });
+
+// ===== Bitacora =====
+function toggleBlogForm() {
+  const form = document.getElementById("blogForm");
+  form.classList.toggle("oculto");
+}
+
+function cargarPosts() {
+  fetch(APPS_SCRIPT_FOTOS_URL + "?accion=listarPosts&n=10&t=" + Date.now(), { cache: "no-store" })
+    .then((r) => r.json())
+    .then((datos) => {
+      const contenedor = document.getElementById("posts");
+      if (!datos.success || !datos.posts || datos.posts.length === 0) {
+        contenedor.innerHTML = '<div class="sinPosts">Todavia no hay publicaciones</div>';
+        return;
+      }
+      contenedor.innerHTML = datos.posts.map((p, i) => {
+        const d = new Date(p.fecha);
+        const dia = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+        const hora = d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+        const img = p.imagenId
+          ? '<img class="postImg" src="https://lh3.googleusercontent.com/d/' + p.imagenId + '=w800" alt="Post" onerror="this.src=\'https://drive.google.com/uc?export=view&id=' + p.imagenId + '\'">'
+          : '';
+        return '<div class="post">' + img +
+          '<div class="postFecha">' + dia + ' · ' + hora +
+          ' <button class="postBorrar" onclick="borrarPost(' + i + ')" title="Borrar">&#10005;</button></div>' +
+          '<div class="postTexto">' + escapeHtml(p.texto) + '</div></div>';
+      }).join("");
+    })
+    .catch(() => {});
+}
+
+function escapeHtml(t) {
+  const d = document.createElement("div");
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+document.getElementById("postImagen").addEventListener("change", function () {
+  const preview = document.getElementById("blogPreview");
+  if (this.files && this.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
+    };
+    reader.readAsDataURL(this.files[0]);
+  } else {
+    preview.innerHTML = "";
+  }
+});
+
+function publicarPost() {
+  const texto = document.getElementById("postTexto").value.trim();
+  const estado = document.getElementById("postEstado");
+  const archivo = document.getElementById("postImagen").files[0];
+
+  if (!texto) { estado.textContent = "Escribi algo"; estado.className = "postEstado error"; return; }
+
+  estado.textContent = "Publicando...";
+  estado.className = "postEstado";
+
+  if (archivo) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const b64 = e.target.result.split(",")[1];
+      enviarPost({ accion: "nuevoPost", texto: texto, imagen: b64 });
+    };
+    reader.readAsDataURL(archivo);
+  } else {
+    enviarPost({ accion: "nuevoPost", texto: texto });
+  }
+}
+
+function enviarPost(payload) {
+  const estado = document.getElementById("postEstado");
+  fetch(APPS_SCRIPT_FOTOS_URL, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  })
+    .then((r) => r.json())
+    .then((datos) => {
+      if (datos.success) {
+        estado.textContent = "Publicado!";
+        estado.className = "postEstado ok";
+        document.getElementById("postTexto").value = "";
+        document.getElementById("postImagen").value = "";
+        document.getElementById("blogPreview").innerHTML = "";
+        cargarPosts();
+        setTimeout(() => { document.getElementById("blogForm").classList.add("oculto"); }, 1500);
+      } else {
+        estado.textContent = datos.error || "Error";
+        estado.className = "postEstado error";
+      }
+    })
+    .catch(() => {
+      estado.textContent = "Error de conexion";
+      estado.className = "postEstado error";
+    });
+}
+
+function borrarPost(i) {
+  const contrasena = prompt("Contraseña para borrar:");
+  if (!contrasena) return;
+  fetch(APPS_SCRIPT_FOTOS_URL, {
+    method: "POST",
+    body: JSON.stringify({ accion: "borrarPost", index: i, contrasena: contrasena })
+  })
+    .then((r) => r.json())
+    .then((datos) => {
+      if (datos.success) cargarPosts();
+      else alert(datos.error || "Error al borrar");
+    })
+    .catch(() => alert("Error de conexion"));
+}
