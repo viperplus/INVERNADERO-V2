@@ -294,7 +294,7 @@ async function traerUltimaCompleta() {
 function mostrarFoto(id, creada) {
   ultimoIdFoto = id;
   elem("foto").dataset.reintentos = "0";
-  elem("foto").src = "https://lh3.googleusercontent.com/d/" + id + "=w1200";
+  elem("foto").src = "https://lh3.googleusercontent.com/d/" + id + "=w800";
   elem("fotoFecha").textContent =
     creada ? "Última foto: " + new Date(creada).toLocaleString() : "Última foto";
 }
@@ -340,18 +340,16 @@ async function cargarFoto() {
 
   cargandoFotoEnCurso = true;
   try {
-    const datos = await traerUltimaCompleta();
-    if (!datos.success || !datos.id || !datos.base64) {
+    const meta = await consultarMeta();
+    if (!meta) return;
+    if (!meta.success || !meta.id) {
       elem("foto").src = "";
       elem("fotoFecha").textContent = "Sin fotos todavía";
       ultimoIdFoto = null;
       return;
     }
-    if (datos.id !== ultimoIdFoto) {
-      ultimoIdFoto = datos.id;
-      elem("foto").src = "data:image/jpeg;base64," + datos.base64;
-      elem("fotoFecha").textContent =
-        "Última foto: " + new Date(datos.creada).toLocaleString();
+    if (meta.id !== ultimoIdFoto) {
+      mostrarFoto(meta.id, meta.creada);
     }
   } catch (e) {
     console.log("Foto: " + e.message);
