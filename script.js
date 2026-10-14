@@ -19,8 +19,6 @@ const API_URL =
 // ----- Countdown ventilador -----
 let fanOnTimestamp = null;  // cuándo se prendió el ventilador (local)
 let fanCountdownInterval = null;
-let fanHeartbeatInterval = null; // reintenta field6=1 hasta que la placa lo tome
-let ultimoComandoFanMs = 0;      // gracia para no pisar un comando recién enviado
 
 const elem = (id) => document.getElementById(id);
 
@@ -79,31 +77,18 @@ async function cargarDatos() {
 
     // Comandos: field6=ventilador(0/1/2), field7=bomba(0/1)
     // field6: 0=todo OFF, 1=ventilador+válvula, 2=solo válvula
-    // Solo cuentan las entradas que traen SOLO el comando (sin sensores),
-    // porque el ESP32 escribe sensores cada 30 s y puede pisar el field6.
-    let fanVal = null, pumpVal = null, fanTs = null;
+    let fanVal = null, pumpVal = null, valveVal = null;
     for (let i = feeds.length - 1; i >= 0; i--) {
-      const f = feeds[i];
-      const soloComando = f.field1 === null && f.field2 === null &&
-                          f.field3 === null && f.field4 === null && f.field5 === null;
-      if (!soloComando) continue;
-      if (fanVal === null && f.field6 !== null && f.field6 !== "") {
-        fanVal = parseInt(f.field6);
-        fanTs = f.created_at;
+      if (fanVal === null && feeds[i].field6 !== null && feeds[i].field6 !== "") {
+        fanVal = parseInt(feeds[i].field6);
       }
-      if (pumpVal === null && f.field7 !== null && f.field7 !== "") {
-        pumpVal = parseInt(f.field7);
+      if (pumpVal === null && feeds[i].field7 !== null && feeds[i].field7 !== "") {
+        pumpVal = parseInt(feeds[i].field7);
       }
       if (fanVal !== null && pumpVal !== null) break;
     }
-    // Confirmación física: cuando el ESP32 ya encendió, sus lecturas de
-    // sensores traen field6=1. Ahí dejamos de reintentar el comando.
-    const espFanOn = feeds.some(f => f.field1 !== null && f.field6 === "1");
-    let fanOn   = fanVal === 1;
-    let valveOn = fanVal === 1 || fanVal === 2;
-    // Si ya no quedan entradas de comando pero la placa informa field6=1,
-    // el ventilador sigue encendido: lo mantenemos sin reiniciar el conteo.
-    if (fanVal === null && espFanOn && fanOnTimestamp) { fanOn = true; valveOn = true; }
+    const fanOn   = fanVal === 1;
+    const valveOn = fanVal === 1 || fanVal === 2;
     const pumpOn  = pumpOffTimer ? false : pumpVal === 1;
     elem("fanState").textContent   = fanOn ? "ON" : "--";
     elem("valveState").textContent = valveOn ? "ON" : "--";
@@ -115,24 +100,15 @@ async function cargarDatos() {
     elem("valveAnim").classList.toggle("valvula-abierta", valveOn);
     elem("pumpAnim").classList.toggle("bombeando", pumpOn);
 
-    // Sync countdown: si el ventilador está ON, usar la hora del comando real
+    // Sync countdown: si el ventilador está ON pero no tenemos timestamp, estimar
     if (fanOn && !fanOnTimestamp) {
-      const t = fanTs ? new Date(fanTs).getTime() : NaN;
-      if (!isNaN(t) && Date.now() - t >= FAN_MAX_MS) {
-        apagarFanUI();
-        elem("fanCountdown").textContent = "Apagado automáticamente";
-      } else {
-        fanOnTimestamp = isNaN(t) ? Date.now() - (FAN_MAX_MS - 300000) : t;
-        iniciarCountdown();
-      }
+      // No sabemos exactamente cuándo se prendió, estimar 5 min restantes
+      fanOnTimestamp = Date.now() - (FAN_MAX_MS - 300000);
+      iniciarCountdown();
     } else if (!fanOn && fanOnTimestamp) {
-      // Gracia: no apagar si recién mandamos un comando (la placa puede
-      // tardar hasta un ciclo en subir el field6=1).
-      if (Date.now() - ultimoComandoFanMs > 45000) apagarFanUI();
+      fanOnTimestamp = null;
+      detenerCountdown();
     }
-
-    // Si la placa ya confirma ventilador ON, no hace falta seguir insistiendo.
-    if (espFanOn && fanHeartbeatInterval) detenerHeartbeatFan();
 
     const ts = new Date(d.created_at).getTime();
     const antiguedad = (Date.now() - ts) / 1000;
@@ -181,16 +157,13 @@ function controlFan(ON) {
     () => {
       elem("fanState").textContent = ON ? "ON" : "--";
       elem("aspasFan").classList.toggle("girando", ON);
-      ultimoComandoFanMs = Date.now();
       if (ON) {
         elem("valveState").textContent = "ON";
         elem("valveToggle").checked = true;
         elem("valveAnim").classList.add("valvula-abierta");
         fanOnTimestamp = Date.now();
         iniciarCountdown();
-        iniciarHeartbeatFan();
       } else {
-        detenerHeartbeatFan();
         elem("valveState").textContent = "--";
         elem("valveToggle").checked = false;
         elem("valveAnim").classList.remove("valvula-abierta");
@@ -219,40 +192,13 @@ function detenerCountdown() {
   elem("fanCountdown").textContent = "";
 }
 
-function iniciarHeartbeatFan() {
-  detenerHeartbeatFan();
-  // El ESP32 escribe field6=0 cada 30 s al mandar sensores, así que la web
-  // reescribe field6=1 hasta que la placa lo tome (sin pasar los 15 s mínimos).
-  fanHeartbeatInterval = setInterval(() => {
-    if (!fanOnTimestamp) { detenerHeartbeatFan(); return; }
-    thingSpeakWrite("field6", 1, () => { ultimoComandoFanMs = Date.now(); });
-  }, 25000);
-}
-
-function detenerHeartbeatFan() {
-  clearInterval(fanHeartbeatInterval);
-  fanHeartbeatInterval = null;
-}
-
-function apagarFanUI() {
-  detenerHeartbeatFan();
-  fanOnTimestamp = null;
-  detenerCountdown();
-  elem("fanState").textContent = "--";
-  elem("fanToggle").checked = false;
-  elem("aspasFan").classList.remove("girando");
-  elem("valveState").textContent = "--";
-  elem("valveToggle").checked = false;
-  elem("valveAnim").classList.remove("valvula-abierta");
-}
-
 function actualizarCountdown() {
   if (!fanOnTimestamp) { detenerCountdown(); return; }
   const restante = Math.max(0, FAN_MAX_MS - (Date.now() - fanOnTimestamp));
   const min = Math.floor(restante / 60000);
   const seg = Math.floor((restante % 60000) / 1000);
   if (restante <= 0) {
-    apagarFanUI();
+    detenerCountdown();
     elem("fanCountdown").textContent = "Apagado automáticamente";
     return;
   }
