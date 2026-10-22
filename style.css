@@ -401,6 +401,29 @@ h1 { font-size:34px; font-weight:800; color:#2f7d32; letter-spacing:1px; text-sh
   padding: 20px;
 }
 
+.postTexto .oculto {
+  display: none;
+}
+
+.postLeerMas {
+  background: none;
+  border: none;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 0 0;
+}
+
+.postLeerMas:hover {
+  text-decoration: underline;
+}
+
+.blogMas {
+  width: 100%;
+  margin-top: 2px;
+}
+
 .blogToggle {
   margin-top: 14px;
 }

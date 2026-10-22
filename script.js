@@ -155,21 +155,7 @@ function controlFan(ON) {
   // Apagar: field6=0 (todo OFF, incluyendo válvula)
   thingSpeakWrite("field6", ON ? 1 : 0,
     () => {
-      elem("fanState").textContent = ON ? "ON" : "--";
-      elem("aspasFan").classList.toggle("girando", ON);
-      if (ON) {
-        elem("valveState").textContent = "ON";
-        elem("valveToggle").checked = true;
-        elem("valveAnim").classList.add("valvula-abierta");
-        fanOnTimestamp = Date.now();
-        iniciarCountdown();
-      } else {
-        elem("valveState").textContent = "--";
-        elem("valveToggle").checked = false;
-        elem("valveAnim").classList.remove("valvula-abierta");
-        fanOnTimestamp = null;
-        detenerCountdown();
-      }
+      actualizarUIFan(ON);
       mostrarMsg(ON ? "Ventilador encendido (20 min máx)" : "Ventilador apagado", "ok");
     },
     () => {
@@ -178,6 +164,25 @@ function controlFan(ON) {
       mostrarMsg("No se pudo enviar. Esperá 15s.", "error");
     }
   );
+}
+
+function actualizarUIFan(ON) {
+  elem("fanState").textContent = ON ? "ON" : "--";
+  elem("aspasFan").classList.toggle("girando", ON);
+  elem("fanToggle").checked = ON;
+  if (ON) {
+    elem("valveState").textContent = "ON";
+    elem("valveToggle").checked = true;
+    elem("valveAnim").classList.add("valvula-abierta");
+    fanOnTimestamp = Date.now();
+    iniciarCountdown();
+  } else {
+    elem("valveState").textContent = "--";
+    elem("valveToggle").checked = false;
+    elem("valveAnim").classList.remove("valvula-abierta");
+    fanOnTimestamp = null;
+    detenerCountdown();
+  }
 }
 
 function iniciarCountdown() {
@@ -645,29 +650,75 @@ function toggleBlogForm() {
   form.classList.toggle("oculto");
 }
 
+const POSTS_POR_PASO = 10;   // cuantos posts se muestran al principio y por cada "ver mas"
+const POSTS_CORTO = 220;     // caracteres visibles antes del "Leer mas"
+let todosPosts = [];
+let postsVisibles = POSTS_POR_PASO;
+
 function cargarPosts() {
-  fetch(APPS_SCRIPT_FOTOS_URL + "?accion=listarPosts&n=10&t=" + Date.now(), { cache: "no-store" })
+  fetch(APPS_SCRIPT_FOTOS_URL + "?accion=listarPosts&n=50&t=" + Date.now(), { cache: "no-store" })
     .then((r) => r.json())
     .then((datos) => {
-      const contenedor = document.getElementById("posts");
       if (!datos.success || !datos.posts || datos.posts.length === 0) {
-        contenedor.innerHTML = '<div class="sinPosts">Todavia no hay publicaciones</div>';
+        document.getElementById("posts").innerHTML = '<div class="sinPosts">Todavia no hay publicaciones</div>';
         return;
       }
-      contenedor.innerHTML = datos.posts.map((p, i) => {
-        const d = new Date(p.fecha);
-        const dia = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-        const hora = d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
-        const img = p.imagenId
-          ? '<img class="postImg" src="https://lh3.googleusercontent.com/d/' + p.imagenId + '=w800" alt="Post" onerror="this.src=\'https://drive.google.com/uc?export=view&id=' + p.imagenId + '\'">'
-          : '';
-        return '<div class="post">' + img +
-          '<div class="postFecha">' + dia + ' · ' + hora +
-          ' <button class="postBorrar" onclick="borrarPost(' + i + ')" title="Borrar">&#10005;</button></div>' +
-          '<div class="postTexto">' + escapeHtml(p.texto) + '</div></div>';
-      }).join("");
+      todosPosts = datos.posts;
+      postsVisibles = POSTS_POR_PASO;
+      renderizarPosts();
     })
     .catch(() => {});
+}
+
+function renderizarPosts() {
+  const contenedor = document.getElementById("posts");
+  const aMostrar = todosPosts.slice(0, postsVisibles);
+  let html = aMostrar.map((p, i) => postHtml(p, i)).join("");
+  const faltan = todosPosts.length - aMostrar.length;
+  if (faltan > 0) {
+    html += '<button class="btn blogMas" onclick="masPosts()">&#8593; Ver publicaciones anteriores (' + faltan + ')</button>';
+  }
+  contenedor.innerHTML = html;
+}
+
+function postHtml(p, i) {
+  const d = new Date(p.fecha);
+  const dia = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const hora = d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  const img = p.imagenId
+    ? '<img class="postImg" src="https://lh3.googleusercontent.com/d/' + p.imagenId + '=w800" alt="Post" onerror="this.src=\'https://drive.google.com/uc?export=view&id=' + p.imagenId + '\'">'
+    : '';
+
+  const textoCompleto = escapeHtml(p.texto);
+  let cuerpo = textoCompleto;
+  if (p.texto.length > POSTS_CORTO) {
+    let corte = p.texto.slice(0, POSTS_CORTO);
+    const espacio = corte.lastIndexOf(" ");
+    if (espacio > 100) corte = corte.slice(0, espacio);
+    cuerpo = '<span class="postCorto">' + escapeHtml(corte) + '&hellip;</span>' +
+             '<span class="postLargo oculto">' + textoCompleto + '</span>' +
+             '<button class="postLeerMas" onclick="toggleLeerMas(this)">&#9662; Leer mas</button>';
+  }
+
+  return '<div class="post">' + img +
+    '<div class="postFecha">' + dia + ' · ' + hora +
+    ' <button class="postBorrar" onclick="borrarPost(' + i + ')" title="Borrar">&#10005;</button></div>' +
+    '<div class="postTexto">' + cuerpo + '</div></div>';
+}
+
+function toggleLeerMas(btn) {
+  const texto = btn.closest(".post").querySelector(".postTexto");
+  const corto = texto.querySelector(".postCorto");
+  const largo = texto.querySelector(".postLargo");
+  const estabaAbierto = !largo.classList.contains("oculto");
+  largo.classList.toggle("oculto", estabaAbierto);
+  corto.classList.toggle("oculto", !estabaAbierto);
+  btn.innerHTML = estabaAbierto ? "&#9662; Leer mas" : "&#9652; Leer menos";
+}
+
+function masPosts() {
+  postsVisibles += POSTS_POR_PASO;
+  renderizarPosts();
 }
 
 function escapeHtml(t) {
@@ -743,7 +794,7 @@ function borrarPost(i) {
   if (!contrasena) return;
   fetch(APPS_SCRIPT_FOTOS_URL, {
     method: "POST",
-    body: JSON.stringify({ accion: "borrarPost", index: i, contrasena: contrasena })
+    body: JSON.stringify({ accion: "borrarPost", indice: i, contrasena: contrasena })
   })
     .then((r) => r.json())
     .then((datos) => {
